@@ -7,7 +7,7 @@
     <rosparam command="load" file="$(find gimbal_controller)/config/controller_config.yaml" />
   </node>
 
-  <node name="controller"
+  <node name="gimbal_controller"
         pkg="gimbal_controller"
         type="gimbal_controller_node.py"
         output="screen"

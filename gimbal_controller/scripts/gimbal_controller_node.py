@@ -78,9 +78,11 @@ class Gimbal:
         """ Read reference position vector (ref_pos) from topic
             and check they are within a desired range.
         """
-        self.ref_pos['tilt'] = data.norm_vect[0]
-        self.ref_pos['roll'] = data.norm_vect[1]
+        
+        self.ref_pos['roll'] = data.norm_vect[0]
+        self.ref_pos['tilt'] = data.norm_vect[1]
 
+        # Check reference position is within the desired range (radians)
         if self.ref_pos['tilt'] > self.tilt_limit_max:
             self.ref_pos['tilt'] = self.tilt_limit_max
         elif self.ref_pos['tilt'] < self.tilt_limit_min:
@@ -91,10 +93,26 @@ class Gimbal:
         elif self.ref_pos['roll'] < self.roll_limit_min:
             self.ref_pos['roll'] = self.roll_limit_min
         
+        # Calculate the target position using the initial and reference positions,
+        # then publish those angles (radians)
+        if self.pos_initilized == True:
+            self.target_pos['tilt'] = self.ref_pos['tilt'] + self.ini_pos['tilt']
+            self.target_pos['roll'] = self.ref_pos['roll'] + self.ini_pos['roll']
+
+            # Check position limits in tilt axis
+            if self.target_pos['tilt'] > self.tilt_limit_max:
+                self.target_pos['tilt'] = self.tilt_limit_max
+            elif self.target_pos['tilt'] < self.tilt_limit_min:
+                self.target_pos['tilt'] = self.tilt_limit_min
+
+            # Check position limits in roll axis
+            if self.target_pos['roll'] > self.roll_limit_max:
+                self.target_pos['roll'] = self.roll_limit_max
+            elif self.target_pos['roll'] < self.roll_limit_min:
+                self.target_pos['roll'] = self.roll_limit_min
+
+            self.pub_servos_pos()
         
-        print('roll: ', self.ref_pos['roll'])
-        print('tilt', self.ref_pos['tilt'])
-        # if self.tilt > - self.max_tilt and self.tilt <
 
     def pub_servos_pos(self):
         """ Publish servo position to topic read by the driver
@@ -113,47 +131,7 @@ class Gimbal:
         self.servo_pub.publish(servo_data)
 
 
-    def stabilize(self):
-        """Main loop to calculate the target position, controll these values are
-           within the range, and publish the target positions to the driver.
-        """
-
-        # Controller
-        
-        # Frequency of execution
-        # Verify with Ariel perception frequency
-        rate = rospy.Rate(self.frequency)
-
-        while not rospy.is_shutdown():
-            if self.pos_initilized == True:
-                self.target_pos['tilt'] = self.ref_pos['tilt'] + self.ini_pos['tilt']
-                self.target_pos['roll'] = self.ref_pos['roll'] + self.ini_pos['roll']
-
-
-                # Check position limits in tilt axis
-                if self.target_pos['tilt'] > self.tilt_limit_max:
-                    self.target_pos['tilt'] = self.tilt_limit_max
-                elif self.target_pos['tilt'] < self.tilt_limit_min:
-                    self.target_pos['tilt'] = self.tilt_limit_min
-
-                # Check position limits in roll axis
-                if self.target_pos['roll'] > self.roll_limit_max:
-                    self.target_pos['roll'] = self.roll_limit_max
-                elif self.target_pos['roll'] < self.roll_limit_min:
-                    self.target_pos['roll'] = self.roll_limit_min
-
-                self.pub_servos_pos()
-
-            rate.sleep()
-
-
 if __name__ == "__main__":
 
     gimbal = Gimbal()
-
-    try:
-        gimbal.stabilize();
-    except rospy.ROSInterruptException:
-        pass
-
-    
+    rospy.spin()  
