@@ -7,12 +7,12 @@
     <rosparam command="load" file="$(find gimbal_controller)/config/controller_config.yaml" />
   </node>
 
-  <node name="pixhawk_imu"
+  <!--node name="pixhawk_imu"
         pkg="gimbal_controller"
         type="pixhawk_rpy.py"
         output="screen"
         respawn="true">
-  </node>
+  </node-->
 
   <node name="controller"
         pkg="gimbal_controller"
