@@ -1,2 +1,4 @@
 # vscode folder with local configuration
 /.vscode
+
+*.pyc
