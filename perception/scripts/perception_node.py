@@ -92,7 +92,7 @@ class Perception():
 		for x, y in plane_coordinates[1:]:
 			a += (x * oy - y * ox)
 			ox, oy = x, y
-			a_plane = a / 2
+		a_plane = a / 2
 		return a_plane
 
 
@@ -173,14 +173,11 @@ class Perception():
 			
 			#Reference Sky line Distance
 			self.d_ref = self.distance(x_position, y_position) #pixels
-			#'''
-			#Reference Area below the sky line
-			x_line = np.arange(x_position[0], x_position[-1], 1)
-			y_line = a * x_line + b
-			#area_integral = sp.integrate(y_line, (x_line, x_position[0], x_position[-1])) #pixels^2
-			area_total = self.img_height * (x_position[-1] - x_position[0]) #pixels^2
-			#self.area_ref = area_total - area_integral #pixels^2
-			#'''
+			
+			#Reference Area below the first frame sky line
+        		height_rectangle = (img_height - y_position[0])
+        		area_ref = height_rectangle * img_width #pixels^2
+			
 			#Plane 1 Reference Values
 			# (p,q) = Center Straight Line Coordinates
 			p = x_position[int(len(x_position) / 2)] #pixels
@@ -320,7 +317,7 @@ class Perception():
 			#Current Sky line Distance
 			d_current = self.distance(x_position, y_position) #pixels
 			#Sky line Distance Check
-			if d_current <= (1 / 3) * self.d_ref:
+			if d_current <= (1 / 5) * self.d_ref:
 				return
 
 			#Sky line roll angle compensation movement with respect to the reference image
@@ -360,11 +357,14 @@ class Perception():
 				l = np.array([p + t_x - 100, self.img_height, (altitude - 0.4) * self.focal_length_pixel / self.focal_length_mm]) #pixels
 
 			#Current Area
-			# plane_coordinates = np.array(m, n, l) #pixels
-			# area_current = self.plane_area(plane_coordinates) #pixels^2
+			m_2=np.delete(m, -1)
+        		n_2=np.delete(n, -1)
+        		l_2=np.delete(l, -1)
+        		plane_coordinates = np.array([m_2, n_2, l_2]) #pixels
+			area_current = abs(self.plane_area(plane_coordinates)) #pixels^2
 			#Plane Area Check
-			# if area_current <= (1 / 3) * self.area_ref:
-			# 	return
+			if area_current <= (1 / 5) * self.area_ref:
+			 	return
 			#Estimate plane center and plane normal vector
 			center_current, vec_current = self.estimate_plane(m, n, l)
 
