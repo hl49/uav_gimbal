@@ -19,20 +19,20 @@ class Gimbal:
         self.frequency = 10.0 # Hz
         self.pos_initilized = False
         self.servo_data_seq_counter = 0
-        self.tilt = 0.0
+        self.pitch = 0.0
         self.roll = 0.0
         # Angles roll, pitch and yaw are renamed to
-        # roll, tilt, pan.
-        self.ref_pos = {'roll': 0.0, 'tilt':0.0} # From perception: input
-        self.target_pos = {'roll': 0.0, 'tilt':0.0} # Command we send to servos: output
-        self.ini_pos = {'roll':0.0, 'tilt':0.0} # 
-        self.tilt_limit_max = math.radians(45)
-        self.tilt_limit_min = math.radians(-45)
+        # roll, pitch, pan.
+        self.ref_pos = {'roll': 0.0, 'pitch':0.0} # From perception: input
+        self.target_pos = {'roll': 0.0, 'pitch':0.0} # Command we send to servos: output
+        self.ini_pos = {'roll':0.0, 'pitch':0.0} # 
+        self.pitch_limit_max = math.radians(45)
+        self.pitch_limit_min = math.radians(-45)
         self.roll_limit_max = math.radians(45)
         self.roll_limit_min = math.radians(-45)
         self.count_init_servo_pos = 0 
         self.num_samples_init = 20 # Number of samples (ms)
-        self.ini_tilt_arr = np.zeros([self.num_samples_init, 1])
+        self.ini_pitch_arr = np.zeros([self.num_samples_init, 1])
         self.ini_roll_arr = np.zeros([self.num_samples_init, 1])
 
 
@@ -49,12 +49,12 @@ class Gimbal:
         self.sub_joint_states = rospy.Subscriber("/joint_states",
                     JointState,
                     self.get_ini_joint_states_callback,
-                    queue_size = 1)
+                    queue_size = 10)
 
         self.sub_imu = rospy.Subscriber("/perception_rpy",
                     RPYAxes,
                     self.get_perception_data_callback,
-                    queue_size = 1)
+                    queue_size = 10)
 
 
     def get_ini_joint_states_callback(self, data):
@@ -63,14 +63,15 @@ class Gimbal:
         """
         if self.count_init_servo_pos < self.num_samples_init:
             joints = dict(zip(data.name, data.position))
-            self.ini_tilt_arr[self.count_init_servo_pos, 0] = joints['tilt']
+            self.ini_pitch_arr[self.count_init_servo_pos, 0] = joints['pitch']
             self.ini_roll_arr[self.count_init_servo_pos, 0] = joints['roll']
             self.count_init_servo_pos += 1
         else:
             # Check variance
-            self.ini_pos['tilt'] = self.ini_tilt_arr.mean()
+            self.ini_pos['pitch'] = self.ini_pitch_arr.mean()
             self.ini_pos['roll'] = self.ini_roll_arr.mean()
             self.pos_initilized = True
+            print("Servos Initialized!")
             self.sub_joint_states.unregister()
     
 
@@ -79,14 +80,14 @@ class Gimbal:
             and check they are within a desired range.
         """
         
-        self.ref_pos['roll'] = data.norm_vect[0]
-        self.ref_pos['tilt'] = data.norm_vect[1]
+        self.ref_pos['roll'] = data.skyline[0]
+        self.ref_pos['pitch'] = data.skyline[1]
 
         # Check reference position is within the desired range (radians)
-        if self.ref_pos['tilt'] > self.tilt_limit_max:
-            self.ref_pos['tilt'] = self.tilt_limit_max
-        elif self.ref_pos['tilt'] < self.tilt_limit_min:
-            self.ref_pos['tilt'] = self.tilt_limit_min
+        if self.ref_pos['pitch'] > self.pitch_limit_max:
+            self.ref_pos['pitch'] = self.pitch_limit_max
+        elif self.ref_pos['pitch'] < self.pitch_limit_min:
+            self.ref_pos['pitch'] = self.pitch_limit_min
 
         if self.ref_pos['roll'] > self.roll_limit_max:
             self.ref_pos['roll'] = self.roll_limit_max
@@ -96,14 +97,14 @@ class Gimbal:
         # Calculate the target position using the initial and reference positions,
         # then publish those angles (radians)
         if self.pos_initilized == True:
-            self.target_pos['tilt'] = self.ref_pos['tilt'] + self.ini_pos['tilt']
+            self.target_pos['pitch'] = self.ref_pos['pitch'] + self.ini_pos['pitch']
             self.target_pos['roll'] = self.ref_pos['roll'] + self.ini_pos['roll']
 
-            # Check position limits in tilt axis
-            if self.target_pos['tilt'] > self.tilt_limit_max:
-                self.target_pos['tilt'] = self.tilt_limit_max
-            elif self.target_pos['tilt'] < self.tilt_limit_min:
-                self.target_pos['tilt'] = self.tilt_limit_min
+            # Check position limits in pitch axis
+            if self.target_pos['pitch'] > self.pitch_limit_max:
+                self.target_pos['pitch'] = self.pitch_limit_max
+            elif self.target_pos['pitch'] < self.pitch_limit_min:
+                self.target_pos['pitch'] = self.pitch_limit_min
 
             # Check position limits in roll axis
             if self.target_pos['roll'] > self.roll_limit_max:
@@ -112,6 +113,7 @@ class Gimbal:
                 self.target_pos['roll'] = self.roll_limit_min
 
             self.pub_servos_pos()
+            # print('roll = ', "{:.4f}".format(self.target_pos['roll']),'pitch = ', "{:.4f}".format(self.target_pos['pitch']))
         
 
     def pub_servos_pos(self):
@@ -124,8 +126,8 @@ class Gimbal:
         servo_data.header.frame_id = ''
         servo_data.header.seq = self.servo_data_seq_counter
 
-        servo_data.name = ["tilt", "roll"]
-        servo_data.position = [self.target_pos['tilt'], self.target_pos['roll']]
+        servo_data.name = ["pitch", "roll"]
+        servo_data.position = [self.target_pos['pitch'], self.target_pos['roll']]
 
         self.servo_data_seq_counter =+ 1
         self.servo_pub.publish(servo_data)

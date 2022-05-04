@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-  <node name="dynamixel_interface_node" 
+  <!--node name="dynamixel_interface_node" 
         pkg="dynamixel_interface" 
         type="dynamixel_interface_controller_node" 
         output="screen">
     <rosparam command="load" file="$(find gimbal_controller)/config/controller_config.yaml" />
-  </node>
+  </node-->
 
   <node name="gimbal_controller"
         pkg="gimbal_controller"

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from __future__ import division
 import numpy as np
 import cv2 as cv
 import sympy as sp
@@ -11,7 +12,6 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 
-
 class Perception():
 
 	def __init__(self):
@@ -19,7 +19,7 @@ class Perception():
 		self.bridge = CvBridge()
 
 		# Define publisher
-		self.pub = rospy.Publisher("/rpy_reference",
+		self.pub_refs = rospy.Publisher("/perception_rpy",
 			RPYAxes, queue_size = 10)
 	
 		self.sub = rospy.Subscriber("/segnet/color_mask",
@@ -51,6 +51,11 @@ class Perception():
 		denum = sum([xi ** 2 for xi in x]) - n * xbar ** 2
 		a = numer / denum
 		b = ybar - a * xbar
+		# print("xbar = ", xbar)
+		# print("ybar = ", ybar)
+		# print("n = ", n)
+		# print("numer = ", numer)
+		# print("denum = ", denum)
 		return a, b
 
 
@@ -121,7 +126,7 @@ class Perception():
 
 		rpy_data.skyline  =  [roll, pitch]
 
-		self.pub.publish(rpy_data)
+		self.pub_refs.publish(rpy_data)
 
 
 	# process frames until user exits
@@ -162,6 +167,7 @@ class Perception():
 			#a = Slope
 			#b = y-intercept
 			a, b = self.fit(x_position, y_position)
+			# print("a, b = ", a,b)
 			angle_a = np.arctan(a) #radians
 			self.last_last_angle = angle_a #radians
 			self.last_last_b = b #pixels
@@ -175,8 +181,8 @@ class Perception():
 			self.d_ref = self.distance(x_position, y_position) #pixels
 			
 			#Reference Area below the first frame sky line
-        		height_rectangle = (img_height - y_position[0])
-        		area_ref = height_rectangle * img_width #pixels^2
+			height_rectangle = (self.img_height - y_position[0])
+			self.area_ref = height_rectangle * self.img_width #pixels^2
 			
 			#Plane 1 Reference Values
 			# (p,q) = Center Straight Line Coordinates
@@ -198,6 +204,12 @@ class Perception():
 			#Estimate reference plane center and reference plane normal vector
 			center_ref, self.vec_ref = self.estimate_plane(m, n, l)
 
+			# print("img_height", self.img_height)
+			# print("img_width", self.img_width)
+			# print("last_last_angle = ", self.last_last_angle) #radians
+			# print("last_last_b = ", self.last_last_b )#pixels")
+			# print("reference_angle =", self.reference_angle)
+			# print("reference_b = ", self.reference_b)
 
 		elif self.image_counter == 2:
 			img = self.boundary_removal(img)
@@ -285,6 +297,7 @@ class Perception():
 			#(x_position_predict,  y_position_predict) = Sky line predicted coordinates
 			x_position_predict = [i for i in range(0, len(img[0,:]), 5)]
 			y_position_predict = []
+			# print("a_p =", a_p, "b_p=", b_p)	
 			for x in x_position_predict:
 				y = a_p * x + b_p
 				y_position_predict.append(y)
@@ -358,9 +371,9 @@ class Perception():
 
 			#Current Area
 			m_2=np.delete(m, -1)
-        		n_2=np.delete(n, -1)
-        		l_2=np.delete(l, -1)
-        		plane_coordinates = np.array([m_2, n_2, l_2]) #pixels
+			n_2=np.delete(n, -1)
+			l_2=np.delete(l, -1)
+			plane_coordinates = np.array([m_2, n_2, l_2]) #pixels
 			area_current = abs(self.plane_area(plane_coordinates)) #pixels^2
 			#Plane Area Check
 			if area_current <= (1 / 5) * self.area_ref:

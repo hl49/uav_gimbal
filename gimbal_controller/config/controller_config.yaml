@@ -40,7 +40,7 @@ ports:
           torque_limit: 1.0    # maximum motor torque for all modes, given as a fraction of rated max (0-1)
 
         - id: 2
-          joint_name: tilt
+          joint_name: pitch
           zero_pos: 2048
           min_pos: 0
           max_pos: 4095
