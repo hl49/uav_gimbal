@@ -288,6 +288,7 @@ class Perception():
 						
 			#Pitch angle compensation movement
 			else:
+				self.roll_angle_compensate = 0.0
 				if b_current != self.reference_b:
 					b_movement = b_current - self.reference_b #pixels
 					#b measured from the center of the image to the reference image
@@ -441,6 +442,7 @@ class Perception():
 						
 			#Pitch angle compensation movement
 			else:
+				self.roll_angle_compensate = 0.0
 				if b_current != self.reference_b:
 					b_movement = b_current - self.reference_b #pixels
 					#b measured from the center of the image to the reference image
