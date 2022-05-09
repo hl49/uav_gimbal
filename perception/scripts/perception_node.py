@@ -41,6 +41,8 @@ class Perception():
 		self.img_width = 0.0
 		self.area_ref = 0.0
 		self.vec_ref = 0.0
+		self.roll_angle_compensate = 0.0
+		self.pitch_angle_compensate = 0.0
 
 	def fit(self, x, y): 
 		"""Curve Fitting Straight line. Return the slope of the line a and the y-intercept b"""
@@ -236,21 +238,67 @@ class Perception():
 
 			#Sky line roll angle compensation movement with respect to the reference image
 			angle_current = angle_a #radians
-			roll_angle_compensate = angle_current - self.reference_angle #radians
+			#Sky line pich angle compensation movement with respect to the reference image variables
+			b_current = b #pixels
+			
+			#Roll angle compensation movement
+			if angle_current != self.reference_angle:
+				self.roll_angle_compensate = angle_current - self.reference_angle #radians
+				print("Roll and Pitch angles [rad]:", self.roll_angle_compensate, self.pitch_angle_compensate)
+				self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
+				#(x_position, y_position) = Current sky line image coordinates
+				x_position = []
+				y_position = []
+				for i in range (0, len(img[0, :]), 5):
+					for j in range (0, len(img[:, 0]), 5):
+						if img[j, i] == 0:
+							x_position.append(i)
+							y_position.append(j)
+							break
+				#a = Current Slope
+				#b = Current y-intercept
+				a, b = self.fit(x_position, y_position)   
+				angle_a = np.arctan(a) #radians
+				self.last_angle = angle_a #radians
+				self.last_b = b #pixels
 
-			#Sky line pitch angle compensation movement with respect to the reference image
-			b_current  = b #pixels
-			b_movement = b_current - self.reference_b #pixels
-			#b measured from the center of the image to the reference image
-			b_center_ref = self.reference_b - self.img_height / 2 #pixels
-			#Angle measured from the center of the image to the reference image
-			b_center_ref_angle = np.arctan(b_center_ref / self.focal_length_pixel) #radians
-			#b measured from the center of the image to the current sky line image height
-			b_total = b_center_ref + b_movement #pixels
-			#Angle measured from the center of the image to the current sky line image height
-			b_total_angle = np.arctan(b_total / self.focal_length_pixel) #radians
+				#Increase of current a and b with respect to the reference image
+				self.theta_inc = self.last_angle - self.last_last_angle #radians
+				self.b_inc = self.last_b - self.last_last_b #pixels
+				
+				#Sky line pitch angle compensation movement with respect to the reference image variables
+				b_current = b #pixels
+				
+				#Pitch angle compensation movement
+				if b_current != self.reference_b:
+					b_movement = b_current - self.reference_b #pixels
+					#b measured from the center of the image to the reference image
+					b_center_ref = self.reference_b - self.img_height / 2 #pixels
+					#Angle measured from the center of the image to the reference image
+					b_center_ref_angle = np.arctan(b_center_ref / self.focal_length_pixel) #radians
+					#b measured from the center of the image to the current sky line image height
+					b_total = b_center_ref + b_movement #pixels
+					#Angle measured from the center of the image to the current sky line image height
+					b_total_angle = np.arctan(b_total / self.focal_length_pixel) #radians
+					self.pitch_angle_compensate = np.arctan(b_total_angle - b_center_ref_angle) #radians
+					print("Roll and Pitch angles [rad]:", self.roll_angle_compensate, self.pitch_angle_compensate)
+					self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
 			#Pitch angle compensation movement
-			pitch_angle_compensate = np.arctan(b_total_angle - b_center_ref_angle) #radians
+			else:
+				if b_current != self.reference_b:
+					b_movement = b_current - self.reference_b #pixels
+					#b measured from the center of the image to the reference image
+					b_center_ref = self.reference_b - self.img_height / 2 #pixels
+					#Angle measured from the center of the image to the reference image
+					b_center_ref_angle = np.arctan(b_center_ref / self.focal_length_pixel) #radians
+					#b measured from the center of the image to the current sky line image height
+					b_total = b_center_ref + b_movement #pixels
+					#Angle measured from the center of the image to the current sky line image height
+					b_total_angle = np.arctan(b_total / self.focal_length_pixel) #radians
+					self.pitch_angle_compensate = np.arctan(b_total_angle - b_center_ref_angle) #radians
+					print("Roll and Pitch angles [rad]:", self.roll_angle_compensate, self.pitch_angle_compensate)
+					self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
+
 
 			#Plane 2 Values
 			# (p,q) = Current Center Straight Line Coordinates
@@ -278,10 +326,9 @@ class Perception():
 			theta_y = np.arctan2(-rotation_matrix[2,0], np.sqrt((rotation_matrix[2,1]) ** 2 + (rotation_matrix[2,2]) ** 2)) #radians
 			theta_z = np.arctan2(rotation_matrix[1,0], rotation_matrix[0,0]) #radians
 
-			print("Roll and Pitch angles [rad]:", roll_angle_compensate, pitch_angle_compensate)
 			print('Theta x, Theta y, Theta z [rad]: ', theta_x, theta_y, theta_z)
 
-			self.publish_data(roll_angle_compensate, pitch_angle_compensate, self.image_counter)
+			self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
 
 
 		elif self.image_counter > 2:
@@ -334,23 +381,73 @@ class Perception():
 			if d_current <= (1 / 5) * self.d_ref:
 				return
 
-			#Sky line roll angle compensation movement with respect to the reference image
+			#Sky line roll angle compensation movement with respect to the reference image variables
 			angle_current = angle_a #radians
-			roll_angle_compensate = angle_current - self.reference_angle #radians
-
-			#Sky line pitch angle compensation movement with respect to the reference image
+			#Sky line pich angle compensation movement with respect to the reference image variables
 			b_current = b #pixels
-			b_movement = b_current - self.reference_b #pixels
-			#b measured from the center of the image to the reference image
-			b_center_ref = self.reference_b - self.img_height / 2 #pixels
-			#Angle measured from the center of the image to the reference image
-			b_center_ref_angle = np.arctan(b_center_ref / self.focal_length_pixel) #radians
-			#b measured from the center of the image to the current sky line image height
-			b_total = b_center_ref + b_movement #pixels
-			#Angle measured from the center of the image to the current sky line image height
-			b_total_angle = np.arctan(b_total / self.focal_length_pixel) #radians
+			
+			#Roll angle compensation movement
+			if angle_current != self.reference_angle:
+				self.roll_angle_compensate = angle_current - self.reference_angle #radians
+				print("Roll and Pitch angles [rad]:", self.roll_angle_compensate, self.pitch_angle_compensate)
+				self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
+				#(x_position,  y_position) = Current sky line image coordinates
+				x_position = x_position_predict 
+				y_position = []
+				for i,j in zip(x_position, y_position_predict):
+					j=int(j)
+					if img[j,i] == 0: 
+						while (img[j,i] == 0):              
+							j -= 1 
+						y_position.append(j)
+					else:
+						while (img[j,i] == 127):              
+							j += 1 
+						y_position.append(j)
+
+				#a = Current Slope
+				#b = Current y-intercept
+				a, b = self.fit(x_position, y_position)
+				angle_a = np.arctan(a) #radians
+				self.last_angle = angle_a #radians
+				self.last_b = b #pixels
+
+				#Increase of current a and b with respect to the reference image
+				self.theta_inc = self.last_angle - self.last_last_angle #radians
+				self.b_inc = self.last_b - self.last_last_b #pixels
+				
+				#Sky line pitch angle compensation movement with respect to the reference image variables
+				b_current = b #pixels
+				
+				#Pitch angle compensation movement
+				if b_current != self.reference_b:
+					b_movement = b_current - self.reference_b #pixels
+					#b measured from the center of the image to the reference image
+					b_center_ref = self.reference_b - self.img_height / 2 #pixels
+					#Angle measured from the center of the image to the reference image
+					b_center_ref_angle = np.arctan(b_center_ref / self.focal_length_pixel) #radians
+					#b measured from the center of the image to the current sky line image height
+					b_total = b_center_ref + b_movement #pixels
+					#Angle measured from the center of the image to the current sky line image height
+					b_total_angle = np.arctan(b_total / self.focal_length_pixel) #radians
+					self.pitch_angle_compensate = np.arctan(b_total_angle - b_center_ref_angle) #radians
+					print("Roll and Pitch angles [rad]:", self.roll_angle_compensate, self.pitch_angle_compensate)
+					self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
 			#Pitch angle compensation movement
-			pitch_angle_compensate = np.arctan(b_total_angle - b_center_ref_angle) #radians
+			else:
+				if b_current != self.reference_b:
+					b_movement = b_current - self.reference_b #pixels
+					#b measured from the center of the image to the reference image
+					b_center_ref = self.reference_b - self.img_height / 2 #pixels
+					#Angle measured from the center of the image to the reference image
+					b_center_ref_angle = np.arctan(b_center_ref / self.focal_length_pixel) #radians
+					#b measured from the center of the image to the current sky line image height
+					b_total = b_center_ref + b_movement #pixels
+					#Angle measured from the center of the image to the current sky line image height
+					b_total_angle = np.arctan(b_total / self.focal_length_pixel) #radians
+					self.pitch_angle_compensate = np.arctan(b_total_angle - b_center_ref_angle) #radians
+					print("Roll and Pitch angles [rad]:", self.roll_angle_compensate, self.pitch_angle_compensate)
+					self.publish_data(self.roll_angle_compensate, self.pitch_angle_compensate, self.image_counter)
 
 			#Plane 3 Values
 			# (p,q) = Current Center Straight Line Coordinates
@@ -389,9 +486,7 @@ class Perception():
 			theta_y = np.arctan2(-rotation_matrix[2,0], np.sqrt((rotation_matrix[2,1]) ** 2 + (rotation_matrix[2,2]) ** 2)) #radians
 			theta_z = np.arctan2(rotation_matrix[1,0], rotation_matrix[0,0]) #radians
 
-			print("Roll and Pitch angles [rad]:", roll_angle_compensate, pitch_angle_compensate)
 			print('Theta x, Theta y, Theta z [rad]: ', theta_x, theta_y, theta_z)
-			self.publish_data(roll_angle_compensate, pitch_angle_compensate, self.image_counter)
 
 
 
