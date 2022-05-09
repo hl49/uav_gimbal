@@ -20,7 +20,7 @@ class Perception():
 
 		# Define publisher
 		self.pub_refs = rospy.Publisher("/perception_rpy",
-			RPYAxes, queue_size = 10)
+			RPYAxes, queue_size = 1)
 	
 		self.sub = rospy.Subscriber("/segnet/color_mask",
 			Image, self.process_img_callback)
@@ -148,6 +148,7 @@ class Perception():
 		if self.image_counter == 1:			
 			self.img_height = img.shape[0] 
 			self.img_width = img.shape[1] 
+			# print("h*w = ", self.img_height, self.img_width)
 			#HFOV = Horizontal Field of View of the camera
 			#HFOV_GoPro = 170° ; Raspberry Camera = 62.2°
 			HFOV = 62.2 #degrees

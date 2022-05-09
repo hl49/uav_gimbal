@@ -49,12 +49,12 @@ class Gimbal:
         self.sub_joint_states = rospy.Subscriber("/joint_states",
                     JointState,
                     self.get_ini_joint_states_callback,
-                    queue_size = 10)
+                    queue_size = 1)
 
         self.sub_imu = rospy.Subscriber("/perception_rpy",
                     RPYAxes,
                     self.get_perception_data_callback,
-                    queue_size = 10)
+                    queue_size = 1)
 
 
     def get_ini_joint_states_callback(self, data):
