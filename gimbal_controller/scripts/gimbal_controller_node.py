@@ -79,7 +79,7 @@ class Gimbal:
         """ Read reference position vector (ref_pos) from topic
             and check they are within a desired range.
         """
-        joints = dict(zip(data.name, data.position))
+        joints = dict(zip(data.name, data.skyline))
         self.ref_pos['roll'] = joints['roll']
         self.ref_pos['pitch'] = joints['pitch']
 
