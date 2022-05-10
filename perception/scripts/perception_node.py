@@ -126,6 +126,7 @@ class Perception():
 		rpy_data.header.stamp = rospy.Time.now()
 		rpy_data.header.frame_id = ''
 
+		rpy_data.name = ['roll', 'pitch']
 		rpy_data.skyline  =  [roll, pitch]
 
 		self.pub_refs.publish(rpy_data)

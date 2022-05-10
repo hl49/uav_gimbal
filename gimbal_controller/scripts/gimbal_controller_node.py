@@ -79,9 +79,9 @@ class Gimbal:
         """ Read reference position vector (ref_pos) from topic
             and check they are within a desired range.
         """
-        
-        self.ref_pos['roll'] = data.skyline[0]
-        self.ref_pos['pitch'] = data.skyline[1]
+        joints = dict(zip(data.name, data.position))
+        self.ref_pos['roll'] = joints['roll']
+        self.ref_pos['pitch'] = joints['pitch']
 
         # Check reference position is within the desired range (radians)
         if self.ref_pos['pitch'] > self.pitch_limit_max:
