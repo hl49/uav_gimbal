@@ -12,6 +12,7 @@ from sensor_msgs.msg import JointState
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float32MultiArray
 from perception.msg import RPYAxes 
+from tf.transformations import euler_from_quaternion
 
 class Gimbal:
 
@@ -19,27 +20,26 @@ class Gimbal:
 
 		# Set variables
 		# Node frequency
-		self.frequency = 10.0 # Hz
+		self.frequency = 60.0 # Hz
 		self.pos_initilized = False
 		self.servo_data_seq_counter = 0
-		self.pitch = 0.0
-		self.roll = 0.0
 		# Angles roll, pitch and yaw are renamed to
 		# roll, pitch, pan.
-		self.ref_pos = {'roll': 0.0, 'pitch':0.0} # From perception: input
-		self.target_pos = {'roll': 0.0, 'pitch':0.0} # Command we send to servos: output
-		self.ini_pos = {'roll':0.0, 'pitch':0.0} # 
-		self.imu_rpy = {'roll':0.0, 'pitch':0.0} # 
-		self.pitch_limit_max = math.radians(45)
-		self.pitch_limit_min = math.radians(-45)
-		self.roll_limit_max = math.radians(45)
-		self.roll_limit_min = math.radians(-45)
+		self.skyline_rpy = {'roll': 0.0, 'pitch':0.0}	# From perception-skyline: input
+		self.gndPlane_rpy = {'roll': 0.0, 'pitch':0.0}	# From perception-ground plane: input
+		self.imu_rpy = {'roll':0.0, 'pitch':0.0}
+		self.ini_pos = {'roll':0.0, 'pitch':0.0}
+		self.pitch_limit_max = math.radians(35)
+		self.pitch_limit_min = math.radians(-35)
+		self.roll_limit_max = math.radians(42)
+		self.roll_limit_min = math.radians(-42)
 		self.count_init_servo_pos = 0 
 		self.num_samples_init = 20 # Number of samples (ms)
 		self.ini_pitch_arr = np.zeros([self.num_samples_init, 1])
 		self.ini_roll_arr = np.zeros([self.num_samples_init, 1])
-		self.a = 0.0 # alpha
-		self.b = 1.0 # beta
+		self.a = 0.60 # a const for imu
+		self.b = 0.20 # b const for skyline
+		self.c = 0.20 # c const for ground plane
 		self.tf = np.array([[0, 1, 0, 0],
 			[0, 0, -1, 18.765],
 			[-1, 0, 0, 46.367],
@@ -69,8 +69,8 @@ class Gimbal:
 					self.get_perception_data_callback,
 					queue_size = 1)
 
-		# self.sub_perception = rospy.Subscriber("/imu/data",
-		self.sub_perception = rospy.Subscriber("/imu/filtered_data",
+		self.sub_perception = rospy.Subscriber("/imu/data",
+		# self.sub_perception = rospy.Subscriber("/imu/filtered_data",
 					Imu,
 					self.get_imu_data_callback,
 					queue_size = 5)
@@ -97,71 +97,125 @@ class Gimbal:
 		""" Read reference position vector (ref_pos) from topic
 			and check they are within a desired range.
 		"""
-		joints = dict(zip(data.name, data.skyline))
-		self.ref_pos['roll'] = joints['roll']
-		self.ref_pos['pitch'] = joints['pitch']
-
-		r,y = joints['roll'], joints['pitch']
-		rpy = np.array([[r],[y],[0],[0]])
-
-		tf_sky = np.dot(tf, rpy)
-
-		
-
-		# # Check reference position is within the desired range (radians)
-		# if self.ref_pos['pitch'] > self.pitch_limit_max:
-		#     self.ref_pos['pitch'] = self.pitch_limit_max
-		# elif self.ref_pos['pitch'] < self.pitch_limit_min:
-		#     self.ref_pos['pitch'] = self.pitch_limit_min
-
-		# if self.ref_pos['roll'] > self.roll_limit_max:
-		#     self.ref_pos['roll'] = self.roll_limit_max
-		# elif self.ref_pos['roll'] < self.roll_limit_min:
-		#     self.ref_pos['roll'] = self.roll_limit_min
-		
-		# print('roll = ', "{:.4f}".format(self.target_pos['roll']),'pitch = ', "{:.4f}".format(self.target_pos['pitch']))
+		skyline = dict(zip(data.name, data.skyline))
+		norm_vect = dict(zip(data.name, data.norm_vect))
+		self.skyline_rpy['roll'] = skyline['roll']*(-1.0)
+		self.skyline_rpy['pitch'] = skyline['pitch']
+		self.gndPlane_rpy['roll'] = norm_vect['roll']
+		self.gndPlane_rpy['pitch'] = norm_vect['pitch']
 	
 	def get_imu_data_callback(self, data):
+		# print(data.orientation)
 		x = data.orientation.x
 		y = data.orientation.y
 		z = data.orientation.z
 		w = data.orientation.w
+		
+		r, p, y = euler_from_quaternion([x, y, z, w])
+		self.imu_rpy['roll'] = y 
+		self.imu_rpy['pitch'] = r
 
-		num = +2.0 * (w * x + y * z)
-		den = +1.0 - 2.0 * (x * x + y * y)
-		roll = math.atan2(num, den)
-
-		t2 = +2.0 * (w * y - z * x)
-		t2 = +1.0 if t2 > +1.0 else t2
-		t2 = -1.0 if t2 < -1.0 else t2
-		pitch = math.asin(t2)
-		self.imu_rpy['roll'] = roll
-		self.imu_rpy['pitch'] = pitch
+	def stabilize(self):
 
 		# Calculate the target position using the initial and reference positions,
 		# then publish those angles (radians)
-		if self.pos_initilized == True:
-			self.target_pos['pitch'] = self.a * self.ref_pos['pitch'] + self.b * self.imu_rpy['roll']  + self.ini_pos['pitch']
-			self.target_pos['roll'] = self.a * self.ref_pos['roll'] + self.b * self.imu_rpy['pitch'] + self.ini_pos['roll']
 
-			# Check position limits in pitch axis
-			if self.target_pos['pitch'] > self.pitch_limit_max:
-				self.target_pos['pitch'] = self.pitch_limit_max
-			elif self.target_pos['pitch'] < self.pitch_limit_min:
-				self.target_pos['pitch'] = self.pitch_limit_min
+		rate = rospy.Rate(self.frequency)
 
-			# Check position limits in roll axis
-			if self.target_pos['roll'] > self.roll_limit_max:
-				self.target_pos['roll'] = self.roll_limit_max
-			elif self.target_pos['roll'] < self.roll_limit_min:
-				self.target_pos['roll'] = self.roll_limit_min
-
-			self.pub_servos_pos()
-			# print('roll = ', "{:.4f}".format(self.target_pos['roll']),'pitch = ', "{:.4f}".format(self.target_pos['pitch']))
+		#Time values
+		currentTime = 0.0
+		lastTime = rospy.Time.now().to_nsec()
+		dt = 0.0
 
 
-	def pub_servos_pos(self):
+		# # Roll PID constants
+		roll_kp = 1.0 
+		roll_ki = 0.004
+		roll_kd = 0.8
+		roll_i_term = 0.0
+		roll_last_error = 0.0
+		roll_sp = 0.0	# Roll setpoint
+		roll_feedback = 0.0
+		roll_servo = 0.0
+
+		# # Pitch PID constants
+		pitch_kp = 1.0
+		pitch_ki = 0.004
+		pitch_kd = 0.8
+		pitch_i_term = 0.0
+		pitch_last_error = 0.0
+		pitch_sp = 0.0
+		pitch_feedback = 0.0
+		pitch_servo = 0.0
+
+		while not rospy.is_shutdown():
+			if self.pos_initilized == True:
+
+				currentTime = rospy.Time.now().to_nsec()
+				dt = round((currentTime - lastTime)/1e6,2)  # delta time in ms
+				lastTime = currentTime
+
+				roll_feedback = (self.a * self.imu_rpy['roll'] +
+									self.b * self.skyline_rpy['roll'] + 
+									self.c * self.gndPlane_rpy['roll'])
+
+				pitch_feedback = (self.a * self.imu_rpy['pitch'] +
+									self.b * self.skyline_rpy['pitch'] + 
+									self.c * self.gndPlane_rpy['pitch'])
+				
+				# Roll PID
+				roll_error = roll_sp - roll_feedback
+				roll_pid_p = roll_kp * roll_error
+				roll_i_term = roll_i_term + (roll_error * dt)
+				roll_d_term = (roll_last_error - roll_error)/dt
+				roll_last_error = roll_error
+
+				roll_servo = roll_pid_p + roll_i_term * roll_ki + roll_d_term * roll_kd
+
+				# Pitch PID
+				pitch_error = pitch_sp - pitch_feedback
+				pitch_pid_p = pitch_kp * pitch_error
+				pitch_i_term = pitch_i_term + (pitch_error * dt)
+				pitch_d_term = (pitch_last_error - pitch_error)/dt
+				pitch_last_error = pitch_error
+
+				pitch_servo = pitch_pid_p + pitch_i_term * pitch_ki + pitch_d_term * pitch_kd
+
+				# Check position limits in pitch axis
+				if pitch_servo > self.pitch_limit_max:
+					pitch_servo = self.pitch_limit_max
+				elif pitch_servo < self.pitch_limit_min:
+					pitch_servo = self.pitch_limit_min
+
+				# Check position limits in roll axis
+				if roll_servo > self.roll_limit_max:
+					roll_servo = self.roll_limit_max
+				elif roll_servo < self.roll_limit_min:
+					roll_servo = self.roll_limit_min
+				
+
+				# print("roll ", "{:.4f}".format(math.degrees(self.imu_rpy['roll'])),
+				# 	"pitch:", "{:.4f}".format(math.degrees(self.imu_rpy['pitch'])))
+				# print("roll_sky: ","{:.4f}".format(math.degrees(self.skyline_rpy['roll'])),
+				# 	"pitch_sky: ","{:.4f}".format(math.degrees(self.skyline_rpy['pitch'])),)
+				# print("roll_norm: ","{:.4f}".format(math.degrees(self.gndPlane_rpy['roll'])),
+				# 	"pitch_norm: ","{:.4f}".format(math.degrees(self.gndPlane_rpy['pitch'])),)
+
+
+				print("roll:", "{:.2f}".format(math.degrees(roll_servo)),
+						"pitch: ", "{:.2f}".format(math.degrees(pitch_servo)))
+
+				self.pub_servos_pos(sp_r = roll_servo, sp_p = pitch_servo)
+
+				rate.sleep()
+
+
+	def pub_servos_pos(self, sp_r = 0.0, sp_p = 0.0):
 		""" Publish servo position to topic read by the driver
+		
+			Parameters:
+			sp_r: set point roll
+			sp_p: set point pitch
 		"""
 
 		servo_data = JointState()
@@ -171,7 +225,7 @@ class Gimbal:
 		servo_data.header.seq = self.servo_data_seq_counter
 
 		servo_data.name = ["pitch", "roll"]
-		servo_data.position = [self.target_pos['pitch'], self.target_pos['roll']]
+		servo_data.position = [sp_p, sp_r]
 
 		self.servo_data_seq_counter =+ 1
 		self.pub_servo.publish(servo_data)
@@ -180,4 +234,7 @@ class Gimbal:
 if __name__ == "__main__":
 
 	gimbal = Gimbal()
-	rospy.spin()  
+	try:
+		gimbal.stabilize()
+	except rospy.ROSInterruptException:
+		pass
