@@ -6,4 +6,4 @@ The UAV_Gimbal is a set of packages developed to stabilize a gimbal system throu
 3. [Perception](perception)
 
 ## Prerequisites
-We tested the packages in **Ubuntu 18.04** and **ROS Melodic**, the system was run on a **Jetson Nano 2GB*.
+We tested the packages in **Ubuntu 18.04** and **ROS Melodic**, the system was run on a **Jetson Nano 2GB**.
