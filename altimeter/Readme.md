@@ -1,5 +1,5 @@
 # Altimeter
-The current package measures the altitude above sea level (m.s.l).
+The current package measures the altitude above mean sea level (AMSL).
 
 ## 1. Prerequisites
 The packaged is build to read an BMP180 Sensor. Software requirements are described in the [root folder](README.md) of this repository
