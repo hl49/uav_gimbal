@@ -33,5 +33,5 @@ rosrun gimbal_controller gimbal_controller_node.py
 ```
 3.4 Position reference from input topics
 
-The gimbal controller keeps the initial position until a reference position is sent through [perception node](perception) and [ros_imu_bno055](https://github.com/RoboticArts/ros_imu_bno055). The gimbal_controller_node subcribes to the topics `/perception_rpy` and `/imu/data`. The first topic provides reference position relative to the skyline processed by the perception node, and the second topic contains the imu measurements published by the ros_imu_bno055 node.
+The gimbal controller keeps the initial position until a reference position is sent through [perception node](../perception) and [ros_imu_bno055](https://github.com/RoboticArts/ros_imu_bno055). The gimbal_controller_node subcribes to the topics `/perception_rpy` and `/imu/data`. The first topic provides reference position relative to the skyline processed by the perception node, and the second topic contains the imu measurements published by the ros_imu_bno055 node.
 
