@@ -1,5 +1,5 @@
 # Gimbal Controller
-The current package controls the orientation of a gimbal system built with 2 servos [Dynamixel xl430-w250-t](https://emanual.robotis.com/docs/en/dxl/x/xl430-w250/), the hardware interface used to communicate the servos with a pc is the [opencr](https://emanual.robotis.com/docs/en/parts/controller/opencr10/)
+The current package controls the orientation of a gimbal system built with 2 servos [Dynamixel xl430-w250-t](https://emanual.robotis.com/docs/en/dxl/x/xl430-w250/), the hardware interface used to communicate the servos with the Jetson Nano is the [OpenCR 2.0](https://emanual.robotis.com/docs/en/parts/controller/opencr10/).
 
 ## 1. Prerequisites
 The servos driver and communication packages are required to run the current module. The sofware dependencies are described in the [dynamixel interface respository](https://github.com/csiro-robotics/dynamixel_interface).
