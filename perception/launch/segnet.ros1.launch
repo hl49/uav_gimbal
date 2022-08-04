@@ -2,8 +2,8 @@
 
 	<!-- VIDEO SOURCE -->
 	<arg name="input" default="csi://0"/>
-	<arg name="input_width" default="0"/>
-	<arg name="input_height" default="0"/>
+	<arg name="input_width" default="960"/>
+	<arg name="input_height" default="540"/>
 	<arg name="input_codec" default="unknown"/>
 	<arg name="input_loop" default="0"/>
 	<arg name="stream" default="true"/>
