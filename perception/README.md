@@ -14,12 +14,11 @@ Clone the respository in your default environment folder (in this example catkin
   catkin_make
   source ~/catkin_ws/devel/setup.bash
 ```
-2.1 Include pretrained network modified:
-First, copy the content from the [model](./model) folder into the *jetson-inference/python/examples* directory. Then, modify the content of the segnet.ros1.launch according to the following lines:
-```
-TODO
-```
+2.1 Include modified pretrained network:
 
+2.1.1 Copy the content from the [model](./model) folder into the *jetson-inference/python/examples* directory. 
+
+2.1.2 Overwrite the *segnet.ros1.launch* file located in the [ros_deep_learning](https://github.com/dusty-nv/ros_deep_learning) package with the content of the new *segnet.ros1.launch* file included in the [launch](./launch) folder.
 
 ## 3. Running the Gimbal Perception Node
 3.1 Run the live camera segmentation network: 
